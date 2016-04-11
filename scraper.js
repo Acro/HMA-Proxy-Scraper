@@ -3,7 +3,7 @@ var request = require('request');
 var getProxies = function (callback, pageNum, proxiesScraped) {
 
     if (!proxiesScraped) {
-        proxiesScraped = {};
+        proxiesScraped = [];
     }
 
     if (!pageNum){
@@ -21,16 +21,22 @@ var getProxies = function (callback, pageNum, proxiesScraped) {
         var ips = [];
         var ports = [];
         var types = [];
+        var countries = [];
 
         body.replace(/\.(.*?)\{display\:none\}/g, function () {
             //arguments[0] is the entire match
             fakeNums[arguments[1]] = 1
         });
 
-        body.replace(/<td>([\S\s]*?)<\/td>/g, function () {
+        body.replace(/<td[ ]*.*>([\S\s]*?)<\/td>/g, function () {
 			var str = arguments[1].trim();
             if (str === "HTTP" || str === "HTTPS" || str === "socks4/5")
                 types.push(str);
+
+            if (arguments[1].trim().match(/flags-[a-z][a-z]/gi) != null) {
+                var country = arguments[1].match(/flags-[a-z][a-z]/gi)[0].split("-")[1]
+                countries.push(country)
+            }
         });
 
         var trim = body;
@@ -65,7 +71,12 @@ var getProxies = function (callback, pageNum, proxiesScraped) {
             for (var i = 0; i < ips.length; i++) {
                 if (types[i] == 'HTTP' || types[i] == 'HTTPS') {
                     count++;
-                    proxiesScraped[ips[i]] = ports[i]
+                    proxiesScraped.push({
+                        ip: ips[i],
+                        ports: ports[i],
+                        type: types[i],
+                        country: countries[i]
+                    })
                 }
             }
 
@@ -74,7 +85,7 @@ var getProxies = function (callback, pageNum, proxiesScraped) {
             getProxies(callback, pageNum + 1, proxiesScraped)
         }
         else {
-            callback(null,proxiesScraped)
+            callback(null, proxiesScraped)
         }
 
     })
